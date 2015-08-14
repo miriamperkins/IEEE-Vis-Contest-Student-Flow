@@ -1,41 +1,5 @@
-<!DOCTYPE html>
-<meta charset="utf-8">
-<title>SANKEY Experiment</title>
-<style>
-
-.node rect {
-  cursor: move;
-  fill-opacity: .9;
-  shape-rendering: crispEdges;
-}
-
-.node text {
-  pointer-events: none;
-  text-shadow: 0 1px 0 #fff;
-}
-
-.link {
-  fill: none;
-  stroke-opacity: .2;
-  stroke: #000;
-}
-
-.link:hover {
-  stroke-opacity: .5;
-}
-
-</style>
-<body>
-
-<p id="chart">
-
-  <script type="text/javascript" src="d3.min.js"></script>
-    <!--script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js"--><!--/script-->
-  <script type="text/javascript" src="sankey.js"></script>
- 
-<script>
-	
-var units = "Students";
+(function(){
+    var units = "Students";
 
 var margin = {top: 10, right: 10, bottom: 10, left: 10},
     width = 700 - margin.left - margin.right,
@@ -46,7 +10,7 @@ var formatNumber = d3.format(",.0f"),    // zero decimal places
     color = d3.scale.category20();
 
 // append the svg canvas to the page
-var svg = d3.select("#chart").append("svg")
+var svg = d3.select("#sankeyDiagram").append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
   .append("g")
@@ -232,8 +196,4 @@ return {
 {"source":7,"target":11,"value":61051}
 ]};
 }
-
-</script>
-
-</body>
-</html>
+})();
