@@ -148,18 +148,18 @@ grads.append("stop")
 function getData() {
 return {
   "nodes":[
-{"node":0,"name":"T1-Excellent","color":"#00FFFF"},
-{"node":1,"name":"T1-Good","color":"#00FF00"},
-{"node":2,"name":"T1-Moderate","color":"#FFFF00"},
-{"node":3,"name":"T1-Poor","color":"#FF0000"},
-{"node":0,"name":"T2-Excellent","color":"#00FFFF"},
-{"node":1,"name":"T2-Good","color":"#00FF00"},
-{"node":2,"name":"T2-Moderate","color":"#FFFF00"},
-{"node":3,"name":"T2-Poor","color":"#FF0000"},
+{"node":0,"name":"Excellent-T1","color":"#00FFFF"},
+{"node":1,"name":"Good-T1","color":"#00FF00"},
+{"node":2,"name":"Moderate-T1","color":"#FFFF00"},
+{"node":3,"name":"Poor-T1","color":"#FF0000"},
+{"node":0,"name":"Excellent-T2","color":"#00FFFF"},
+{"node":1,"name":"Good-T2","color":"#00FF00"},
+{"node":2,"name":"Moderate-T2","color":"#FFFF00"},
+{"node":3,"name":"Poor-T2","color":"#FF0000"},
 {"node":0,"name":"T3-Excellent","color":"#00FFFF"},
 {"node":1,"name":"T3-Good","color":"#00FF00"},
-{"node":2,"name":"T3-Moderate","color":"#FFFF00"},
-{"node":3,"name":"T3-Poor","color":"#FF0000"}
+{"node":2,"name":"Moderate-T3","color":"#FFFF00"},
+{"node":3,"name":"Poor-T3","color":"#FF0000"}
 ],
 "links":[
 {"source":0,"target":4,"value":24443},
