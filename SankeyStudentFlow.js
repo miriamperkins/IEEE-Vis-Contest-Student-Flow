@@ -28,7 +28,7 @@ var sankey = d3.sankey()
 
 var path = sankey.link();
 
-// load the data (using the timelyportfolio csv method)
+// load the data from Weave
 var graph = getData();
 
   sankey

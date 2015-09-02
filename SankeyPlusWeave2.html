@@ -1,0 +1,331 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<title>Student Flow: Perceived vs. Actual Student Interest</title>
+<html>
+<head>
+ <title>D3 Sankey External Tool</title>
+
+ <style>
+ /* Format Sankey diagram. */
+
+ .node rect {
+    cursor: move;
+    fill-opacity: .2;
+    shape-rendering: crispEdges;
+}
+
+.node text {
+    text-shadow: 0 1px 0 #fff;
+}
+
+.link {
+    fill: none;
+    stroke-opacity: .2;
+    stroke: #000;
+}
+
+.link:hover {
+    stroke-opacity: .2;
+}
+</style>
+
+<body>
+
+    <div id = "sankeyDiagram"></div>
+    <script type="text/javascript" src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+    <script type="text/javascript" src="d3.min.js"></script>
+    <script type="text/javascript" src="sankey.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/lodash.js/3.10.1/lodash.min.js"></script>
+
+
+<script type="text/javascript">
+
+    var NODES = 'nodes';
+    var NODE_NAME = 'name';
+    var NODE_COLOR = 'color';
+
+    var EDGES = 'edges';
+    var EDGE_SOURCE = 'source';
+    var EDGE_TARGET = 'target';
+    var EDGE_NAME = 'name';
+    var EDGE_THICKNESS = 'value';
+
+    var SELECTION_KEYSET = 'selectionKeySet';
+    var PROBE_KEYSET = 'probeKeySet';
+    var SUBSET_KEYFILTER = 'subsetKeyFilter';
+
+     //Width and height
+    var dataset = [];
+    var w = 500;
+    var h = 300;
+    var padding = 30;
+    var toolPath;
+    var tool = {};
+
+     var localKeys = [];
+     var localProbes = {};
+     var localSelection = {};
+     var localSubset = {};
+
+    function get_windowsize()
+    {
+        /* Ganked from http://stackoverflow.com/questions/3437786/how-to-get-web-page-size-browser-window-size-screen-size-in-a-cross-browser-wa */
+        var w = window,
+        d = document,
+        e = d.documentElement,
+        g = d.getElementsByTagName('body')[0],
+        x = w.innerWidth || e.clientWidth || g.clientWidth,
+        y = w.innerHeight|| e.clientHeight|| g.clientHeight;
+        return {x: x, y: y};
+    }
+
+   function data_updated()
+   {
+        var node_keytype = tool[NODES][NODE_NAME].getValue("getMetadata('keyType')");
+        node_data = toolPath.retrieveRecords(tool[NODES], tool[NODES][NODE_NAME]);
+        edge_data = toolPath.retrieveRecords(tool[EDGES], tool[EDGES][EDGE_SOURCE]);
+        var node_ids = _.zipObject();
+        var edge_ids = _.zipObject(_.pluck(edge_data, 'id'));
+        /* modifyrecords */
+
+        function localNameToKeyString(localName) {return toolPath.qkeyToString({localName: localName, keyType: node_keytype});}
+        function localNameToKeyNumber(localName) {return toolPath.qkeyToIndex({localName: localName, keyType: node_keytype});}
+
+        function modifyRecords(records, field, func)
+        {
+            records.forEach(function (record) { record[field] = func(record[field]); });
+        }
+        function copyProp(records, fromField, toField)
+        {
+            records.forEach(function (record) {
+                record[toField] = record[fromField];
+            })
+        }
+
+        copyProp(node_data, "id", "node");
+
+        copyProp(edge_data, "source", "source_key");
+        copyProp(edge_data, "target", "target_key");
+
+        modifyRecords(node_data, "node", localNameToKeyNumber);
+        modifyRecords(edge_data, "source_key", localNameToKeyString);
+        modifyRecords(edge_data, "target_key", localNameToKeyString);
+        modifyRecords(edge_data, "source", localNameToKeyNumber);
+        modifyRecords(edge_data, "target", localNameToKeyNumber);
+
+        node_ids = _.zipObject(tool[SUBSET_KEYFILTER].filterKeys(_.pluck(node_data, 'id')));
+        edge_ids = _.zipObject(tool[SUBSET_KEYFILTER].filterKeys(_.pluck(edge_data, 'id')));
+
+        node_data = _.filter(node_data, function(d) {return _.has(node_ids, d.id);});
+
+        edge_data = _.filter(edge_data, function(d) {return _.has(edge_ids, d.id) && _.has(node_ids, d.source_key) && _.has(node_ids, d.target_key);});
+
+        plot({"nodes": node_data, "links": edge_data});
+    }
+
+    function localNameToKeyString(localName) {return toolPath.qkeyToString({localName: localName, keyType: node_keytype});}
+
+
+    function in_set(d,s)
+    {
+        if (d == undefined) return null;
+        if (s[d.key] == undefined) return false;
+        return true;
+    }
+    function set_isempty(s) {
+        return Object.keys(s).length == 0;
+    }
+    function set_negate(a,b) {
+        var result = {};
+        for (var k in a)
+        {
+            if (b[k] == undefined)
+                result[k] = a[k];
+        }
+        return result;
+    }
+    function set_from_array(a)
+    {
+        var set = {};
+        for (var k in a)
+        {
+            set[a[k]] = true;
+        }
+        return set;
+    }
+
+
+    function in_probeset(d,i,a) {return in_set(d, localProbes);}
+    function in_selectionset(d,i,a) {return in_set(d, localSelection);}
+    function in_subset(d,i,a) { return in_set(d, localSubset);}
+
+
+    var debug_tmp;
+    var gradients, sankey, path, svg, defs, links, nodes;
+
+    var getId = _.property("id");
+    var nodeColor = _.property("color");
+
+    function updateGradients()
+    {
+        gradients.attr("x1", function(d){return d.source.x;})
+            .attr("y1", function(d){return d.source.y;})
+            .attr("x2", function(d){return d.target.x;})
+            .attr("y2", function(d){return d.target.y;});
+    }
+
+    function dragMove(d) {
+        d3.select(this).attr("transform",
+            "translate(" + (
+                d.x = Math.max(0, Math.min(width - d.dx, d3.event.x))
+                )
+            + "," + (
+                d.y = Math.max(0, Math.min(height - d.dy, d3.event.y))
+                ) + ")");
+        sankey.relayout();
+        links.attr("d", path);
+        updateGradients();
+    }
+
+    var units = "Students";
+    var formatNumber = d3.format(",.0f"),    // zero decimal places
+        format = function(d) { return formatNumber(d) + " " + units; },
+        color = d3.scale.category20();
+
+
+    function plot(graph)
+    {
+        var size = get_windowsize();
+        var width = size.x;
+        var height = size.y;
+        /* This might need to be made oneoff for performance */
+        if (!sankey)
+            sankey = d3.sankey().nodeWidth(17).nodePadding(27).size([width,height]);
+        if (!path)
+            path = sankey.link();
+        if (!svg)
+            svg = d3.select('#sankeyDiagram').append("svg");
+        if (!defs)
+            defs = svg.append("defs");
+
+        /* Load new data */
+        sankey.nodes(graph.nodes).links(graph.links).layout(32);
+
+
+
+        gradients = defs.selectAll("linearGradient").data(graph.links, getId);
+
+        gradients.enter().append("linearGradient")
+            .attr("id", getId)
+            .attr("gradientUnits", "userSpaceOnUse");
+
+        updateGradients();
+
+        gradients.html("").append("stop")
+            .attr({
+                "offset": "0%",
+                "stop-color": function (d) {
+                    return nodeColor((d.source.x > d.target.x)? d.source: d.target);}
+            });
+
+        function linkUrl(d) {
+           return "url(#"+getId(d)+")";
+        }
+
+        function strokeWidth(d) {
+            return Math.max(1, d.y);
+        }
+
+        function linkText(d) {
+            return d.source.name + " → " + d.target.name + "\n" + format(d.value);
+        }
+
+        if (!link_group)
+            link_group = svg.append("g").classed("links", true);
+
+        links = link_group.selectAll(".link").data(graph.links, getId);
+
+        links.enter().append("path").classed("link", true);
+
+        links.append("path")
+            .attr("d", path)
+            .style({
+                "stroke-opacity": "0.4",
+                "stroke-width": strokeWidth,
+                "stroke": linkUrl
+            })
+            .sort(function(a, b) {return b.dy - a.dy})
+            .text(linkText);
+
+        nodes = svg.selectAll()
+        nodes = svg.append("g").selectAll(".node").data(graph.nodes, getId);
+
+        nodes.enter().append("g").classed("node", true)
+                .call(d3.behavior.drag()
+                .origin(_.identity)
+                .on("dragstart", function() {this.parentNode.appendChild(this);})
+                .on("drag", dragMove));
+
+        nodes.attr("transform", function (d) { return "translate(" + d.x + "," + d.y + ")";})
+
+        nodes.enter().append("rect");
+        nodes.attr({
+                "height": _.property("dy"),
+                "width": _.property("dx")
+            })
+            .style({
+                "fill": nodeColor,
+                "fill-opacity": ".9", /* CSS */
+                "shape-rendering": "crispEdges", /* CSS */
+                "stroke": function(d) {
+                    return d3.rgb(d.color).darker(2);
+                }
+            })
+            .append("title").text(function(d) { return d.name + "\n" + format(d.value);});
+
+        nodes.enter().append("text");
+        nodes.append("text")
+            .attr({
+                "x": -6, /* CSS? */
+                "y": function (d) {return d.dy / 2;},
+                "dy": ".35em", /* CSS */
+                "text-anchor": "end",
+                "transform": null, /* What? */
+            })
+            .text(_.property("name"))
+            .filter(function (d) {return d.x < width / 2;})
+                .attr("x", 6+sankey.nodeWidth())
+                .attr("text-anchor", "start");
+    }
+    function weave_setup()
+    {
+        toolPath = opener.WeaveExternalTools[window.name].path;
+        toolPath.initProperties([
+        {name: NODES, callback: data_updated, children:
+            [
+            {name: NODE_NAME, label: "Node Label", type: 'DynamicColumn'},
+            {name: NODE_COLOR, label: "Node Color", type: 'DynamicColumn', default: 'defaultColorColumn'},
+            ]
+        },
+        {name: EDGES, callback: data_updated, children:
+            [
+            {name: EDGE_NAME, label: "Edge Label", type: 'DynamicColumn'},
+            {name: EDGE_SOURCE, label: "Edge Source", type: 'DynamicColumn'},
+            {name: EDGE_TARGET, label: "Edge Target", type: 'DynamicColumn'},
+            {name: EDGE_THICKNESS, label: "Edge Value", type: 'DynamicColumn'}
+            ]
+        }], tool)
+
+        tool[SELECTION_KEYSET] = toolPath.selection_keyset;
+        tool[PROBE_KEYSET] = toolPath.probe_keyset;
+        tool[SUBSET_KEYFILTER] = toolPath.subset_filter;
+        //tool[SELECTION_KEYSET].addKeySetCallback(set_local_selection, true);
+        //tool[PROBE_KEYSET].addKeySetCallback(set_local_probe, true);
+        tool[SUBSET_KEYFILTER].addCallback(data_updated, true);
+
+    }
+
+$(weave_setup);
+
+</script>
+</body>
+</html>
